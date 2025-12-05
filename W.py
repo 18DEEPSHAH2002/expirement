@@ -8,6 +8,30 @@ Notes:
  - Keeps CSV fetch from Google Sheets (gviz CSV).
  - Keeps downloadable CSV, clickable file links, and officer views.
 """
+import subprocess
+import sys
+
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# --- Install required dependencies ---
+required_packages = [
+    "streamlit",
+    "pandas",
+    "numpy",
+    "plotly",
+    "openpyxl",
+    "python-dateutil",
+    "pytz",
+    "altair",
+    "matplotlib"
+]
+
+for package in required_packages:
+    try:
+        __import__(package.split("==")[0])
+    except ImportError:
+        install(package)
 
 import streamlit as st
 import pandas as pd
