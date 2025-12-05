@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management Dashboard</title>
+    
+    <!-- Plotly.js for charts -->
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js" charset="utf-8"></script>
+    
+    <!-- Papa Parse for CSV -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #dbeafe;
+            --bg-secondary: #bfdbfe;
+            --text-primary: #000000;
+            --text-secondary: #1e293b;
+            --border-color: #93c5fd;
+            --primary-color: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --white: #ffffff;
+            --light-gray: #f2f2f2;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            color: var(--white);
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.95;
+        }
+
+        /* Sidebar & Main Layout */
+        .layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .sidebar {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input[type="file"],
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .form-group input[type="file"]::file-selector-button {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .form-group input[type="file"]::file-selector-button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 16px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--warning);
+            margin-left: 8px;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f59e0b;
+            opacity: 0.9;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background-color: #991b1b;
+        }
+
+        .btn-block {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Main Content */
+        .main-content {
+            background-color: var(--white);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-card.danger {
+            background: linear-gradient(135deg, var(--danger), #991b1b);
+        }
+
+        .metric-card.warning {
+            background: linear-gradient(135deg, var(--warning), #d97706);
+        }
+
+        .metric-card.success {
+            background: linear-gradient(135deg, var(--success), #059669);
+        }
+
+        .metric-card h4 {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .metric-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 20px;
+            gap: 0;
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Charts */
+        .chart-container {
+            background-color: var(--white);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-row.full {
+            grid-template-columns: 1fr;
+        }
+
+        /* Filters */
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--light-gray);
+            border-radius: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .styled-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
+        .styled-table th,
+        .styled-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .styled-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .styled-table tr:nth-child(even) {
+            background-color: var(--light-gray);
+        }
+
+        .styled-table tr:hover {
+            background-color: #e8f4ff;
+        }
+
+        .styled-table a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .styled-table a:hover {
+            text-decoration: underline;
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .badge.overdue {
+            background-color: #fee2e2;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .badge.due-soon {
+            background-color: #fef3c7;
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+
+        .badge.pending {
+            background-color: #dbeafe;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+        }
+
+        .badge.completed {
+            background-color: #d1fae5;
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .badge.most-urgent {
+            background-color: #fecaca;
+            color: var(--danger);
+            font-weight: bold;
+        }
+
+        .badge.high {
+            background-color: #fed7aa;
+            color: #92400e;
+        }
+
+        .badge.medium {
+            background-color: #dbeafe;
+            color: var(--primary-color);
+        }
+
+        .badge.low {
+            background-color: #d1fae5;
+            color: var(--success);
+        }
+
+        /* Row highlighting */
+        .row-urgent {
+            background-color: #fee2e2 !important;
+        }
+
+        .row-overdue {
+            background-color: #fecaca !important;
+            font-weight: bold;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .alert.info {
+            background-color: #e0f2fe;
+            border-color: var(--primary-color);
+            color: #0c4a6e;
+        }
+
+        .alert.warning {
+            background-color: #fef3c7;
+            border-color: var(--warning);
+            color: #92400e;
+        }
+
+        .alert.error {
+            background-color: #fee2e2;
+            border-color: var(--danger);
+            color: #7f1d1d;
+        }
+
+        .alert.success {
+            background-color: #d1fae5;
+            border-color: var(--success);
+            color: #065f46;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .chart-row {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Task Management Dashboard</h1>
+            <p>Full-featured task tracking for Ludhiana Administration</p>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="layout">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <h3>⚙️ Controls</h3>
+                
+                <div class="form-group">
+                    <label>Upload CSV File</label>
+                    <input type="file" id="csvFile" accept=".csv" />
+                </div>
+
+                <div class="form-group">
+                    <label>Or Paste CSV Data</label>
+                    <textarea id="csvPaste" rows="6" placeholder="Paste CSV data here..."></textarea>
+                </div>
+
+                <button class="btn btn-block" onclick="parseCSVData()">📥 Load Data</button>
+                <button class="btn btn-secondary btn-block" onclick="downloadData()">📥 Download CSV</button>
+                <button class="btn btn-danger btn-block" onclick="clearAllData()">🗑️ Clear All</button>
+
+                <hr style="margin: 20px 0; border: 1px solid var(--border-color);">
+
+                <h3>📋 Options</h3>
+                <div class="form-group">
+                    <input type="checkbox" id="highlightUrgent" checked />
+                    <label for="highlightUrgent" style="display: inline; margin-left: 5px;">Highlight Urgent/Overdue</label>
+                </div>
+
+                <button class="btn btn-block" onclick="refreshData()">🔄 Refresh</button>
+
+                <hr style="margin: 20px 0; border: 1px solid var(--border-color);">
+
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                    <p><strong>Author:</strong> Deep Shah</p>
+                    <p><strong>Owner:</strong> DC Ludhiana</p>
+                    <p><strong>Contact:</strong><br>
+                    📱 +918905309441<br>
+                    📧 18deep.shah2002@gmail.com</p>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Alerts -->
+                <div id="alertContainer"></div>
+
+                <!-- Metrics -->
+                <div class="metrics-grid" id="metricsContainer">
+                    <div class="metric-card">
+                        <h4>Total Tasks</h4>
+                        <div class="value" id="metricTotal">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <h4>Total Pending</h4>
+                        <div class="value" id="metricPending">0</div>
+                    </div>
+                    <div class="metric-card danger">
+                        <h4>Total Overdue</h4>
+                        <div class="value" id="metricOverdue">0</div>
+                    </div>
+                    <div class="metric-card warning">
+                        <h4>Most Urgent Pending</h4>
+                        <div class="value" id="metricMostUrgent">0</div>
+                    </div>
+                    <div class="metric-card success">
+                        <h4>Total Officers</h4>
+                        <div class="value" id="metricOfficers">0</div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('summary')">📈 Summary</button>
+                    <button class="tab-btn" onclick="switchTab('distribution')">📊 Distribution</button>
+                    <button class="tab-btn" onclick="switchTab('performance')">⭐ Performance</button>
+                    <button class="tab-btn" onclick="switchTab('tasks')">📋 All Tasks</button>
+                </div>
+
+                <!-- Summary Tab -->
+                <div id="summary" class="tab-content active">
+                    <div class="chart-row">
+                        <div class="chart-container">
+                            <div id="chart-pending-by-officer"></div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 15px;">
+                            <div class="chart-container">
+                                <h3 style="margin-bottom: 15px;">Overall Status</h3>
+                                <div id="statusSummary"></div>
+                            </div>
+                            <div class="chart-container">
+                                <h3 style="margin-bottom: 15px;">Priority Distribution</h3>
+                                <div id="priorityStats"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row full">
+                        <div class="chart-container">
+                            <div id="chart-status-breakdown"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribution Tab -->
+                <div id="distribution" class="tab-content">
+                    <div class="chart-container">
+                        <div class="form-group">
+                            <label for="officerSelect">Select Officer:</label>
+                            <select id="officerSelect" onchange="updateOfficerPie()">
+                                <option value="">-- Select an Officer --</option>
+                            </select>
+                        </div>
+                        <div id="chart-officer-pie"></div>
+                    </div>
+                </div>
+
+                <!-- Performance Tab -->
+                <div id="performance" class="tab-content">
+                    <div class="chart-row full">
+                        <div class="chart-container">
+                            <h3 style="margin-bottom: 15px;">Officer Performance Rankings</h3>
+                            <div id="performanceTable"></div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-container">
+                            <div id="chart-top-performers"></div>
+                        </div>
+                        <div class="chart-container">
+                            <div id="chart-bottom-performers"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Tasks Tab -->
+                <div id="tasks" class="tab-content">
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label>Filter by Officer</label>
+                            <select id="filterOfficer" onchange="updateTasksTable()">
+                                <option value="">All Officers</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Filter by Priority</label>
+                            <select id="filterPriority" onchange="updateTasksTable()">
+                                <option value="">All Priorities</option>
+                                <option value="Most Urgent">Most Urgent</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Filter by Status</label>
+                            <select id="filterStatus" onchange="updateTasksTable()">
+                                <option value="">All Statuses</option>
+                                <option value="Overdue">Overdue</option>
+                                <option value="Due Soon">Due Soon</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Search</label>
+                            <input type="text" id="searchInput" placeholder="Search subject/remarks..." onkeyup="updateTasksTable()" />
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="styled-table" id="tasksTable">
+                            <thead>
+                                <tr>
+                                    <th>Sr</th>
+                                    <th>Officer</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Subject</th>
+                                    <th>Entry Date</th>
+                                    <th>Deadline</th>
+                                    <th>File</th>
+                                    <th>Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tasksTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Task Management Dashboard v1.0</strong></p>
+            <p>All data is stored locally on your device. No external servers used.</p>
+            <p>Contact: <a href="mailto:18deep.shah2002@gmail.com">18deep.shah2002@gmail.com</a> | 
+               <a href="tel:+918905309441">+918905309441</a></p>
+        </div>
+    </div>
+
+    <script>
+        // ==================== Global State ====================
+        let rawData = [];
+        let processedData = [];
+
+        // ==================== CSV Parsing ====================
+        function parseCSVData() {
+            const fileInput = document.getElementById('csvFile');
+            const csvPaste = document.getElementById('csvPaste');
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        rawData = results.data;
+                        processData();
+                        renderDashboard();
+                        showAlert('success', '✅ CSV loaded successfully!');
+                    },
+                    error: (error) => {
+                        showAlert('error', '❌ Error parsing CSV: ' + error.message);
+                    }
+                });
+            } else if (csvPaste.value.trim()) {
+                Papa.parse(csvPaste.value, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        rawData = results.data;
+                        processData();
+                        renderDashboard();
+                        showAlert('success', '✅ CSV pasted and loaded successfully!');
+                    },
+                    error: (error) => {
+                        showAlert('error', '❌ Error parsing CSV: ' + error.message);
+                    }
+                });
+            } else {
+                showAlert('warning', '⚠️ Please upload a CSV file or paste CSV data.');
+            }
+        }
+
+        // ==================== Data Processing ====================
+        function normalizeString(val) {
+            if (!val) return '';
+            return String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
+        function canonicalPriority(val) {
+            const priorityMap = {
+                'most urgent': 'Most Urgent',
+                'mosturgent': 'Most Urgent',
+                'urgent': 'Most Urgent',
+                'highest': 'Most Urgent',
+                'high': 'High',
+                'medium': 'Medium',
+                'med': 'Medium',
+                'low': 'Low',
+            };
+            const normalized = normalizeString(val);
+            if (normalized in priorityMap) return priorityMap[normalized];
+            if (normalized.includes('urgent')) return 'Most Urgent';
+            if (normalized.includes('high')) return 'High';
+            if (normalized.includes('medium') || normalized.includes('med')) return 'Medium';
+            if (normalized.includes('low')) return 'Low';
+            return 'Medium';
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            try {
+                return new Date(dateStr);
+            } catch {
+                return null;
+            }
+        }
+
+        function getTaskStatus(deadline, status) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (status && status.toLowerCase() === 'completed') return 'Completed';
+
+            if (!deadline) return 'Pending';
+
+            const dlDate = new Date(deadline);
+            dlDate.setHours(0, 0, 0, 0);
+
+            if (dlDate < today) return 'Overdue';
+            if ((dlDate - today) / (1000 * 60 * 60 * 24) <= 3) return 'Due Soon';
+            return 'Pending';
+        }
+
+        function processData() {
+            processedData = rawData
+                .filter(row => row.Sr && String(row.Sr).trim() !== '' && !isNaN(row.Sr))
+                .map(row => ({
+                    sr: String(row.Sr).trim(),
+                    officer: row['Marked to Officer'] ? String(row['Marked to Officer']).trim() : 'Unknown',
+                    priority: canonicalPriority(row.Priority),
+                    status: row.Status ? String(row.Status).trim() : 'In progress',
+                    taskStatus: getTaskStatus(row.Deadline, row.Status),
+                    subject: row.Subject ? String(row.Subject).trim() : 'N/A',
+                    entryDate: row['Entry Date'] ? String(row['Entry Date']).trim() : '',
+                    deadline: row.Deadline ? String(row.Deadline).trim() : '',
+                    responseDate: row['Response Recieved on'] ? String(row['Response Recieved on']).trim() : '',
+                    file: row.File ? String(row.File).trim() : '',
+                    remarks: row.Remarks ? String(row.Remarks).trim() : '',
+                }));
+
+            // Save to localStorage
+            localStorage.setItem('taskData', JSON.stringify(processedData));
+        }
+
+        // ==================== Rendering Functions ====================
+        function updateMetrics() {
+            const total = processedData.length;
+            const pending = processedData.filter(t => ['Pending', 'Due Soon', 'Overdue'].includes(t.taskStatus)).length;
+            const overdue = processedData.filter(t => t.taskStatus === 'Overdue').length;
+            const mostUrgent = processedData.filter(t => t.priority === 'Most Urgent' && t.taskStatus !== 'Completed').length;
+            const officers = new Set(processedData.map(t => t.officer)).size;
+
+            document.getElementById('metricTotal').textContent = total;
+            document.getElementById('metricPending').textContent = pending;
+            document.getElementById('metricOverdue').textContent = overdue;
+            document.getElementById('metricMostUrgent').textContent = mostUrgent;
+            document.getElementById('metricOfficers').textContent = officers;
+        }
+
+        function renderOfficerPendingChart() {
+            const pending = processedData.filter(t => t.taskStatus !== 'Completed');
+            const officerStats = {};
+
+            pending.forEach(task => {
+                if (!officerStats[task.officer]) {
+                    officerStats[task.officer] = 0;
+                }
+                officerStats[task.officer]++;
+            });
+
+            const sorted = Object.entries(officerStats).sort((a, b) => b[1] - a[1]);
+            const officers = sorted.map(s => s[0]);
+            const counts = sorted.map(s => s[1]);
+
+            const trace = {
+                y: officers,
+                x: counts,
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: '#3b82f6' },
+                text: counts,
+                textposition: 'outside'
+            };
+
+            const layout = {
+                title: 'Officer-wise Pending Tasks',
+                xaxis: { title: 'Number of Tasks' },
+                yaxis: { title: 'Officer' },
+                margin: { l: 150 },
+                height: 400
+            };
+
+            Plotly.newPlot('chart-pending-by-officer', [trace], layout, { responsive: true });
+        }
+
+        function renderStatusChart() {
+            const statusCounts = {
+                'Completed': processedData.filter(t => t.taskStatus === 'Completed').length,
+                'Overdue': processedData.filter(t => t.taskStatus === 'Overdue').length,
+                'Due Soon': processedData.filter(t => t.taskStatus === 'Due Soon').length,
+                'Pending': processedData.filter(t => t.taskStatus === 'Pending').length,
+            };
+
+            const trace = {
+                labels: Object.keys(statusCounts),
+                values: Object.values(statusCounts),
+                type: 'pie',
+                marker: {
+                    colors: ['#10b981', '#dc2626', '#f59e0b', '#3b82f6']
+                }
+            };
+
+            const layout = {
+                title: 'Task Status Breakdown',
+                height: 400
+            };
+
+            Plotly.newPlot('chart-status-breakdown', [trace], layout, { responsive: true });
+        }
+
+        function renderStatusSummary() {
+            const total = processedData.length;
+            const pending = processedData.filter(t => t.taskStatus === 'Pending').length;
+            const dueSoon = processedData.filter(t => t.taskStatus === 'Due Soon').length;
+            const overdue = processedData.filter(t => t.taskStatus === 'Overdue').length;
+            const completed = processedData.filter(t => t.taskStatus === 'Completed').length;
+
+            const html = `
+                <p style="margin: 10px 0;"><strong>Total Tasks:</strong> ${total}</p>
+                <p style="margin: 10px 0;"><strong>Pending:</strong> ${pending}</p>
+                <p style="margin: 10px 0;"><strong>Due Soon (≤3 days):</strong> ${dueSoon}</p>
+                <p style="margin: 10px 0; color: var(--danger); font-weight: bold;"><strong>Overdue:</strong> ${overdue}</p>
+                <p style="margin: 10px 0; color: var(--success);"><strong>Completed:</strong> ${completed}</p>
+                <p style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+                    <strong>Pending %:</strong> ${((pending + dueSoon + overdue) / total * 100).toFixed(1)}%
+                </p>
+            `;
+
+            document.getElementById('statusSummary').innerHTML = html;
+        }
+
+        function renderPriorityStats() {
+            const priorityCounts = {
+                'Most Urgent': processedData.filter(t => t.priority === 'Most Urgent').length,
+                'High': processedData.filter(t => t.priority === 'High').length,
+                'Medium': processedData.filter(t => t.priority === 'Medium').length,
+                'Low': processedData.filter(t => t.priority === 'Low').length,
+            };
+
+            const html = `
+                <p style="margin: 10px 0;"><span class="badge most-urgent">Most Urgent:</span> ${priorityCounts['Most Urgent']}</p>
+                <p style="margin: 10px 0;"><span class="badge high">High:</span> ${priorityCounts['High']}</p>
+                <p style="margin: 10px 0;"><span class="badge medium">Medium:</span> ${priorityCounts['Medium']}</p>
+                <p style="margin: 10px 0;"><span class="badge low">Low:</span> ${priorityCounts['Low']}</p>
+            `;
+
+            document.getElementById('priorityStats').innerHTML = html;
+        }
+
+        function populateOfficerSelect() {
+            const officers = [...new Set(processedData.map(t => t.officer))].sort();
+            const select = document.getElementById('officerSelect');
+            const filterOfficer = document.getElementById('filterOfficer');
+
+            select.innerHTML = '<option value="">-- Select an Officer --</option>';
+            filterOfficer.innerHTML = '<option value="">All Officers</option>';
+
+            officers.forEach(officer => {
+                const opt1 = document.createElement('option');
+                opt1.value = officer;
+                opt1.textContent = officer;
+                select.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = officer;
+                opt2.textContent = officer;
+                filterOfficer.appendChild(opt2);
+            });
+        }
+
+        function updateOfficerPie() {
+            const selectedOfficer = document.getElementById('officerSelect').value;
+            if (!selectedOfficer) {
+                document.getElementById('chart-officer-pie').innerHTML = '<p style="text-align: center; padding: 20px;">Select an officer to view distribution.</p>';
+                return;
+            }
+
+            const officerTasks = processedData.filter(t => t.officer === selectedOfficer && t.taskStatus !== 'Completed');
+
+            if (officerTasks.length === 0) {
+                document.getElementById('chart-officer-pie').innerHTML = '<p style="text-align: center; padding: 20px;">No pending tasks for this officer.</p>';
+                return;
+            }
+
+            const statusCounts = {};
+            ['Overdue', 'Due Soon', 'Pending'].forEach(status => {
+                statusCounts[status] = officerTasks.filter(t => t.taskStatus === status).length;
+            });
+
+            const trace = {
+                labels: Object.keys(statusCounts),
+                values: Object.values(statusCounts),
+                type: 'pie',
+                marker: {
+                    colors: ['#dc2626', '#f59e0b', '#3b82f6']
+                }
+            };
+
+            const layout = {
+                title: `Pending Task Distribution: ${selectedOfficer}`,
+                height: 400
+            };
+
+            Plotly.newPlot('chart-officer-pie', [trace], layout, { responsive: true });
+        }
+
+        function renderPerformance() {
+            const officerStats = {};
+
+            processedData.forEach(task => {
+                if (!officerStats[task.officer]) {
+                    officerStats[task.officer] = {
+                        total: 0,
+                        completed: 0,
+                        overdue: 0,
+                        pending: 0
+                    };
+                }
+                officerStats[task.officer].total++;
+                if (task.taskStatus === 'Completed') officerStats[task.officer].completed++;
+                if (task.taskStatus === 'Overdue') officerStats[task.officer].overdue++;
+                if (task.taskStatus === 'Pending' || task.taskStatus === 'Due Soon') officerStats[task.officer].pending++;
+            });
+
+            const stats = Object.entries(officerStats).map(([officer, data]) => ({
+                officer,
+                completion: data.total > 0 ? (data.completed / data.total * 100).toFixed(1) : 0,
+                completed: data.completed,
+                pending: data.pending,
+                overdue: data.overdue,
+                total: data.total
+            })).sort((a, b) => b.completion - a.completion);
+
+            // Performance Table
+            let tableHtml = '<table class="styled-table" style="width: 100%;"><thead><tr><th>Officer</th><th>Completion %</th><th>Completed</th><th>Pending</th><th>Overdue</th><th>Total</th></tr></thead><tbody>';
+            stats.forEach(s => {
+                tableHtml += `<tr>
+                    <td>${s.officer}</td>
+                    <td><strong>${s.completion}%</strong></td>
+                    <td>${s.completed}</td>
+                    <td>${s.pending}</td>
+                    <td style="color: var(--danger); font-weight: bold;">${s.overdue}</td>
+                    <td>${s.total}</td>
+                </tr>`;
+            });
+            tableHtml += '</tbody></table>';
+            document.getElementById('performanceTable').innerHTML = tableHtml;
+
+            // Top 5 Performance Chart
+            const top5 = stats.slice(0, 5);
+            const trace1 = {
+                y: top5.map(s => s.officer),
+                x: top5.map(s => parseFloat(s.completion)),
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: '#10b981' },
+                text: top5.map(s => s.completion + '%'),
+                textposition: 'outside'
+            };
+
+            Plotly.newPlot('chart-top-performers', [trace1], {
+                title: 'Top 5 Best Performance',
+                xaxis: { title: 'Completion %' },
+                yaxis: { title: 'Officer' },
+                margin: { l: 150 },
+                height: 300
+            }, { responsive: true });
+
+            // Bottom 5 Performance Chart
+            const bottom5 = stats.slice(-5).reverse();
+            const trace2 = {
+                y: bottom5.map(s => s.officer),
+                x: bottom5.map(s => parseFloat(s.completion)),
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: '#dc2626' },
+                text: bottom5.map(s => s.completion + '%'),
+                textposition: 'outside'
+            };
+
+            Plotly.newPlot('chart-bottom-performers', [trace2], {
+                title: 'Top 5 Worst Performance',
+                xaxis: { title: 'Completion %' },
+                yaxis: { title: 'Officer' },
+                margin: { l: 150 },
+                height: 300
+            }, { responsive: true });
+        }
+
+        function updateTasksTable() {
+            const filterOfficer = document.getElementById('filterOfficer').value;
+            const filterPriority = document.getElementById('filterPriority').value;
+            const filterStatus = document.getElementById('filterStatus').value;
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = processedData.filter(task => {
+                if (filterOfficer && task.officer !== filterOfficer) return false;
+                if (filterPriority && task.priority !== filterPriority) return false;
+                if (filterStatus && task.taskStatus !== filterStatus) return false;
+                if (searchInput && !task.subject.toLowerCase().includes(searchInput) && !task.remarks.toLowerCase().includes(searchInput)) return false;
+                return true;
+            });
+
+            filtered.sort((a, b) => {
+                const statusOrder = { 'Overdue': 0, 'Due Soon': 1, 'Pending': 2, 'Completed': 3 };
+                if (statusOrder[a.taskStatus] !== statusOrder[b.taskStatus]) {
+                    return statusOrder[a.taskStatus] - statusOrder[b.taskStatus];
+                }
+                const priorityOrder = { 'Most Urgent': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+            });
+
+            const tbody = document.getElementById('tasksTableBody');
+            tbody.innerHTML = '';
+
+            filtered.forEach(task => {
+                const row = document.createElement('tr');
+
+                const highlight = document.getElementById('highlightUrgent').checked;
+                if (highlight) {
+                    if (task.taskStatus === 'Overdue') row.className = 'row-overdue';
+                    else if (task.priority === 'Most Urgent') row.className = 'row-urgent';
+                }
+
+                const fileLink = task.file && task.file.startsWith('http')
+                    ? `<a href="${task.file}" target="_blank">📎 Open</a>`
+                    : task.file ? '📎 ' + task.file : 'N/A';
+
+                row.innerHTML = `
+                    <td>${task.sr}</td>
+                    <td>${task.officer}</td>
+                    <td><span class="badge ${task.taskStatus.toLowerCase().replace(' ', '-')}">${task.taskStatus}</span></td>
+                    <td><span class="badge ${task.priority.toLowerCase().replace(' ', '-')}">${task.priority}</span></td>
+                    <td>${task.subject}</td>
+                    <td>${task.entryDate}</td>
+                    <td>${task.deadline}</td>
+                    <td>${fileLink}</td>
+                    <td>${task.remarks}</td>
+                `;
+
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderDashboard() {
+            updateMetrics();
+            renderOfficerPendingChart();
+            renderStatusChart();
+            renderStatusSummary();
+            renderPriorityStats();
+            populateOfficerSelect();
+            updateOfficerPie();
+            renderPerformance();
+            updateTasksTable();
+        }
+
+        // ==================== Tab Navigation ====================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // ==================== Utilities ====================
+        function showAlert(type, message) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert ${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        function downloadData() {
+            if (processedData.length === 0) {
+                showAlert('warning', '⚠️ No data to download.');
+                return;
+            }
+
+            const csv = [
+                ['Sr', 'Officer', 'Priority', 'Status', 'Task Status', 'Subject', 'Entry Date', 'Deadline', 'File', 'Remarks']
+            ];
+
+            processedData.forEach(task => {
+                csv.push([
+                    task.sr,
+                    task.officer,
+                    task.priority,
+                    task.status,
+                    task.taskStatus,
+                    task.subject,
+                    task.entryDate,
+                    task.deadline,
+                    task.file,
+                    task.remarks
+                ]);
+            });
+
+            const csvStr = csv.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+            const blob = new Blob([csvStr], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `task_dashboard_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showAlert('success', '✅ Data downloaded successfully!');
+        }
+
+        function refreshData() {
+            if (processedData.length > 0) {
+                renderDashboard();
+                showAlert('success', '🔄 Dashboard refreshed!');
+            } else {
+                showAlert('warning', '⚠️ No data loaded to refresh.');
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure? This will delete all data.')) {
+                rawData = [];
+                processedData = [];
+                localStorage.removeItem('taskData');
+                document.getElementById('csvFile').value = '';
+                document.getElementById('csvPaste').value = '';
+                document.getElementById('alertContainer').innerHTML = '';
+                renderDashboard();
+                showAlert('success', '✅ All data cleared!');
+            }
+        }
+
+        // ==================== Load Saved Data ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('taskData');
+            if (saved) {
+                processedData = JSON.parse(saved);
+                renderDashboard();
+                showAlert('info', 'ℹ️ Loaded previously saved data from localStorage.');
+            } else {
+                renderDashboard();
+            }
+        });
+    </script>
+</body>
+</html>
